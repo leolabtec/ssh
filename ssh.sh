@@ -70,15 +70,21 @@ while :; do
 done
 
 if id "$NEW_USER" >/dev/null 2>&1; then
-  echo "用户 $NEW_USER 已存在，将为该用户重设密码并添加 sudo 权限。"
+  echo "用户 $NEW_USER 已存在。"
+  read -rp "是否为 $NEW_USER 重置密码？[y/N]: " RESET_PW
+  case "$RESET_PW" in
+    y|Y)
+      echo "现在为 $NEW_USER 设置新密码（不会回显）："
+      passwd "$NEW_USER"
+      ;;
+    *)
+      echo "跳过重置密码。"
+      ;;
+  esac
 else
   echo "正在创建用户 $NEW_USER ..."
-  adduser "$NEW_USER"
+  adduser "$NEW_USER"   # 这里已经会让你输入一次密码
 fi
-
-echo
-echo "现在为 $NEW_USER 设置密码（不会回显）："
-passwd "$NEW_USER"
 
 # 安装 sudo（如果不存在）
 if ! command -v sudo >/dev/null 2>&1; then
@@ -91,7 +97,7 @@ echo "正在将 $NEW_USER 加入 sudo 组..."
 usermod -aG sudo "$NEW_USER"
 
 echo
-echo "管理员用户 $NEW_USER 已创建并加入 sudo 组。"
+echo "管理员用户 $NEW_USER 已创建/更新并加入 sudo 组。"
 echo
 
 #-----------------------------#
