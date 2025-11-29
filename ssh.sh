@@ -4,7 +4,8 @@
 # 1. 创建一个新的管理员用户（加入 sudo 组）
 # 2. 禁用 root SSH 登录
 # 3. 修改 SSH 端口（从 22 改为你指定的安全端口）
-# 4. 不在磁盘上保存用户名/密码等敏感信息
+# 4. 可选：安装并配置 Fail2Ban，自动封禁暴力破解 IP
+# 5. 不在磁盘上保存用户名/密码等敏感信息
 
 set -u
 
@@ -136,14 +137,14 @@ sed -i -E 's/^[[:space:]]*Port[[:space:]]+[0-9]+/#&/' "$SSHD_CONFIG"
 # 2. 追加新的 Port 行
 echo "Port $NEW_PORT" >> "$SSHD_CONFIG"
 
-# 3. 设置 PermitRootLogin no
+# 3. 设置 PermitRootLogin no（禁止 root 通过 SSH 登录）
 if grep -qE '^[[:space:]]*PermitRootLogin' "$SSHD_CONFIG"; then
   sed -i -E 's/^[[:space:]]*PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONFIG"
 else
   echo "PermitRootLogin no" >> "$SSHD_CONFIG"
 fi
 
-# 4. 确保允许密码登录（以便新用户能用密码登录，后续你可改为密钥登录）
+# 4. 确保允许密码登录（先保证新用户能登录，后续你可以手动改成密钥登录）
 if grep -qE '^[[:space:]]*PasswordAuthentication' "$SSHD_CONFIG"; then
   sed -i -E 's/^[[:space:]]*PasswordAuthentication.*/PasswordAuthentication yes/' "$SSHD_CONFIG"
 else
@@ -167,16 +168,74 @@ else
 fi
 
 echo
-echo "=== 操作完成，请务必立即测试新登录 ==="
+echo "=== SSH 基础加固完成，请务必立即测试新登录 ==="
 echo "在新的终端/窗口中使用以下信息登录："
 echo
 echo "  用户名: $NEW_USER"
 echo "  端口:   $NEW_PORT"
 echo
-echo "登陆命令示例："
+echo "登录命令示例："
 echo "  ssh ${NEW_USER}@你的服务器IP -p $NEW_PORT"
 echo
-echo "⚠️ 注意："
-echo "1. 本脚本不会将用户名/密码写入任何文件，只是在屏幕上显示。"
-echo "2. 在确认可以用新用户登录之前，不要关闭当前 root 会话。"
+echo "⚠️ 在确认可以用新用户登录之前，不要关闭当前 root 会话。"
+echo
+
+#-----------------------------#
+# 询问是否安装并配置 Fail2Ban
+#-----------------------------#
+
+read -rp "是否安装并配置 Fail2Ban 自动封禁暴力 SSH 攻击？[y/N]: " INSTALL_F2B
+
+case "$INSTALL_F2B" in
+  y|Y)
+    echo
+    echo "=== 安装并配置 Fail2Ban ==="
+
+    if ! command -v fail2ban-client >/dev/null 2>&1; then
+      echo "正在安装 fail2ban..."
+      apt update && apt install -y fail2ban
+    else
+      echo "已检测到 fail2ban，跳过安装步骤。"
+    fi
+
+    JAIL_LOCAL="/etc/fail2ban/jail.local"
+    if [ -f "$JAIL_LOCAL" ]; then
+      JAIL_BACKUP="${JAIL_LOCAL}.backup.$(date +%Y%m%d%H%M%S)"
+      cp "$JAIL_LOCAL" "$JAIL_BACKUP"
+      echo "已备份原有 $JAIL_LOCAL 到: $JAIL_BACKUP"
+    fi
+
+    cat > "$JAIL_LOCAL" <<EOF
+[DEFAULT]
+bantime  = 10m
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8
+
+[sshd]
+enabled  = true
+backend  = systemd
+EOF
+
+    systemctl enable --now fail2ban
+
+    echo
+    echo "Fail2Ban 已安装并启用 SSH 防暴力破解。当前状态："
+    fail2ban-client status sshd || true
+    echo
+    echo "说明："
+    echo "  - 同一 IP 在 10 分钟内连续失败 5 次，将被封禁 10 分钟。"
+    echo "  - 你可以用： fail2ban-client status sshd 查看被封的 IP。"
+    echo "  - 如需修改封禁时长等，可编辑 /etc/fail2ban/jail.local。"
+    echo
+    ;;
+  *)
+    echo "已跳过 Fail2Ban 安装配置步骤。"
+    ;;
+esac
+
+echo "全部操作结束。请确认："
+echo "  1) 新用户 ${NEW_USER} 可以通过端口 ${NEW_PORT} 登录；"
+echo "  2) root 已无法通过 SSH 登录；"
+echo "  3) 如已安装 Fail2Ban，它正在保护你的 SSH。"
 echo
