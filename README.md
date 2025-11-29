@@ -43,6 +43,7 @@ tail -n 50 /var/log/fail2ban.log
 ```
 
 # 添加tg通知
+
 ```
 nano /etc/fail2ban/action.d/telegram.conf
 ```
