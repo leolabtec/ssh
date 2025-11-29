@@ -60,3 +60,15 @@ actionunban = curl -s -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d
 TOKEN = YOUR_BOT_TOKEN
 CHAT_ID = YOUR_CHAT_ID
 ```
+
+```
+nano /etc/fail2ban/jail.local
+```
+
+```
+[sshd]
+enabled  = true
+backend  = systemd
+action = iptables-multiport[port="ssh", name="sshd"]
+         telegram
+```
