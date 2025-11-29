@@ -42,3 +42,20 @@ fail2ban-client reload
 tail -n 50 /var/log/fail2ban.log
 ```
 
+# 添加tg通知
+```
+nano /etc/fail2ban/action.d/telegram.conf
+```
+
+```
+[Definition]
+actionstart =
+actionstop =
+actioncheck =
+actionban = curl -s -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d chat_id=<CHAT_ID> -d text="🚨 SSH 暴力破解：Fail2Ban 已封禁 IP: <ip>"
+actionunban = curl -s -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d chat_id=<CHAT_ID> -d text="⭕ IP 已解除封禁：<ip>"
+
+[Init]
+TOKEN = YOUR_BOT_TOKEN
+CHAT_ID = YOUR_CHAT_ID
+```
