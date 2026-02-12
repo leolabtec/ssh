@@ -1,0 +1,9 @@
+DOMAIN,api.anthropic.com
+DOMAIN,statsig.anthropic.com
+DOMAIN,platform.claude.com
+DOMAIN,code.claude.com
+DOMAIN-SUFFIX,anthropic.com
+DOMAIN-SUFFIX,claude.ai
+DOMAIN-SUFFIX,anthropiccdn.com
+DOMAIN-SUFFIX,anthropic-cdn.com
+DOMAIN-SUFFIX,claudeusercontent.com
